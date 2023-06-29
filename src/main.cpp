@@ -14,11 +14,11 @@ using std::endl;
 
 void getSimulatorInput(Memory &mem) {
   //! test
-  std::fstream fin;
-  std::string name;
-  cin >> name;
-  fin.open(("./testcases/" + name + ".data").data(), std::ios::in);
-#define cin fin
+  //   std::fstream fin;
+  //   std::string name;
+  //   cin >> name;
+  //   fin.open(("./testcases/" + name + ".data").data(), std::ios::in);
+  // #define cin fin
   //! test
   std::string s;
   unsigned pos = 0;
