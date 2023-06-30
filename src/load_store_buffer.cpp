@@ -22,38 +22,34 @@ LoadStoreBufferEntry::LoadStoreBufferEntry(ReorderBuffer &RoB,
   }
 }
 
-void LoadStoreBuffer::receive(int dest, unsigned value) {
-  for (int i = head; i != tail; i = (i + 1) % N) {
-    LoadStoreBufferEntry &entry = a[i];
-    if (entry.depend1 == dest) {
-      entry.depend1 = -1;
-      entry.value1 = value;
-    }
-    if (entry.depend2 == dest) {
-      entry.depend2 = -1;
-      entry.value2 = value;
-    }
+void LoadStoreBuffer::update(ReorderBuffer &RoB) {
+  for (int i = next.head; i != next.tail; i = (i + 1) % next.N) {
+    LoadStoreBufferEntry &entry = next[i];
+    if (entry.depend1 != -1 && RoB[entry.depend1].ready)
+      entry.value1 = RoB[entry.depend1].value, entry.depend1 = -1;
+    if (entry.depend2 != -1 && RoB[entry.depend2].ready)
+      entry.value2 = RoB[entry.depend2].value, entry.depend2 = -1;
   }
+  cur = next;
 }
 
 void LoadStoreBuffer::execute(ReorderBuffer &RoB, ReservationStation &RS,
                               Memory &mem) {
   if (empty() || stall_)
     return;
-  LoadStoreBufferEntry &entry = front();
+  const LoadStoreBufferEntry &entry = cur.front();
   if (!(entry.depend1 == -1 && entry.depend2 == -1))
     return;
-
-  if (++entry.clock < 3)
+  if (++next.front().clock < 3)
     return;
-  pop();
+  next.pop();
 
   unsigned ans = 0;
   int dest = entry.dest;
   unsigned v1 = entry.value1, imm = RoB[dest].imm;
   InstructionType type = RoB[dest].type;
   imm = signExtend<12>(imm);
-  ans = v1 + imm; //!!! store
+  ans = v1 + imm;
   switch (type) {
   case LB:
     ans = mem.readSigned<1>(ans);
@@ -62,7 +58,7 @@ void LoadStoreBuffer::execute(ReorderBuffer &RoB, ReservationStation &RS,
     ans = mem.readSigned<2>(ans);
     break;
   case LW:
-    ans = mem.read<4>(ans);
+    ans = mem.readSigned<4>(ans);
     break;
   case LBU:
     ans = mem.read<1>(ans);
@@ -71,13 +67,10 @@ void LoadStoreBuffer::execute(ReorderBuffer &RoB, ReservationStation &RS,
     ans = mem.read<2>(ans);
     break;
   default:
-    RoB[dest].value2 = entry.value2;
+    RoB.next[dest].value2 = entry.value2;
     stall_ = 1;
     break;
   }
-
-  RoB[dest].value = ans;
-  RoB[dest].ready = 1;
-  if (!isSType(type))
-    RoB.broadcast(RS, *this, dest);
+  RoB.next[dest].value = ans;
+  RoB.next[dest].ready = 1;
 }

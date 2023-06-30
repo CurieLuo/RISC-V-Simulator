@@ -1,6 +1,7 @@
 #ifndef _SJTU_ROB_HPP_
 #define _SJTU_ROB_HPP_
 
+#include "branch_predictor.hpp"
 #include "instruction.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
@@ -39,19 +40,29 @@ public:
   }
 };
 
-struct ReorderBuffer : public Queue<ReorderBufferEntry, 32> {
+class ReorderBuffer {
+  friend class ControlUnit;
+  friend class LoadStoreBuffer;
+  friend class ReservationStation;
+
+private:
+  Queue<ReorderBufferEntry, 32> cur, next;
 
 public:
-  int getCurrentIndex() const { return tail; }
+  const ReorderBufferEntry &operator[](int idx) const { return cur[idx]; }
+  void update() { cur = next; }
+  int getTail() const { return next.tail; }
+  int getHead() const { return next.head; }
+  bool full() const { return cur.full(); }
+  bool empty() const { return cur.empty(); }
   inline void issue(RegisterFile &reg, const Instruction &ins, unsigned address,
                     bool prediction) {
     if (ins.rd)
-      reg.depend[ins.rd] = getCurrentIndex();
-    push(ReorderBufferEntry(ins, address, prediction));
+      reg.depend_next[ins.rd] = getTail();
+    next.push(ReorderBufferEntry(ins, address, prediction));
   }
-  void broadcast(ReservationStation &RS, LoadStoreBuffer &LSB, int dest);
   void commit(ControlUnit &CU, ReservationStation &RS, LoadStoreBuffer &LSB,
-              RegisterFile &reg, Memory &mem);
+              RegisterFile &reg, Memory &mem, BranchPredictor &BP);
 };
 
 #endif

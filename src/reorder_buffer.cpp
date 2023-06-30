@@ -3,30 +3,25 @@
 #include "load_store_buffer.hpp"
 #include "reservation_station.hpp"
 
-void ReorderBuffer::broadcast(ReservationStation &RS, LoadStoreBuffer &LSB,
-                              int dest) {
-  RS.receive(dest, a[dest].value);
-  LSB.receive(dest, a[dest].value);
-}
-
 void ReorderBuffer::commit(ControlUnit &CU, ReservationStation &RS,
-                           LoadStoreBuffer &LSB, RegisterFile &reg,
-                           Memory &mem) {
-  if (empty() || !front().ready)
+                           LoadStoreBuffer &LSB, RegisterFile &reg, Memory &mem,
+                           BranchPredictor &BP) {
+  if (cur.empty() || !cur.front().ready)
     return;
-  ReorderBufferEntry ins = front();
-  int idx = head;
-  pop();
+  const ReorderBufferEntry &ins = cur.front();
+  int idx = getHead();
+  next.pop();
   InstructionType type = ins.type;
-  unsigned rd = ins.rd, value = ins.value, value2 = ins.value2,
-           address = ins.address;
   if (type == END) {
     CU.end_ = 1;
     return;
-  } //!!!!
+  }
+  unsigned rd = ins.rd, value = ins.value, value2 = ins.value2,
+           address = ins.address;
   if (rd) {
-    if (reg.depend[rd] == idx)
-      reg.depend[rd] = -1; //!!!!!!!! next?
+    if (reg.depend_next[rd] == idx)
+      reg.depend_next[rd] = -1;
+    //!!! must use the value from the new clock cycle
     reg.next[rd] = value;
   } else if (isSType(type)) {
     LSB.stall_ = 0;
@@ -42,18 +37,18 @@ void ReorderBuffer::commit(ControlUnit &CU, ReservationStation &RS,
       break;
     }
   }
-  // cerr << "commit: " << instructionName[type] << ' ' << std::hex << address<<
-  // endl; getchar(); //!!!!!!!!!!!!!
   if (isJumpOrBranch(type)) {
+    BP.update(ins, address, bool(value));
     if (type == JALR || isBType(type) && ins.prediction != value) {
       CU.stall_ = 0;
       LSB.stall_ = 0;
-      clear();
+      next.clear();
       RS.clear();
-      LSB.clear();
+      LSB.next.clear();
       reg.clearDependence();
+      CU.update(RS, LSB, *this, reg); // clear all
       if (type == JALR) {
-        CU.PC = value2; //!!!
+        CU.PC = value2;
       } else {
         CU.PC = address + (value ? ins.imm : 4);
       }

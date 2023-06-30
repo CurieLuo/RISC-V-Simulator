@@ -23,16 +23,22 @@ public:
                        unsigned rs2, int d);
 };
 
-struct LoadStoreBuffer : public Queue<LoadStoreBufferEntry, 16> {
-public:
+class LoadStoreBuffer {
+  friend class ReorderBuffer;
+  friend class ControlUnit;
+
+private:
   bool stall_ = 0;
+  Queue<LoadStoreBufferEntry, 16> cur, next;
 
 public:
+  void update(ReorderBuffer &RoB);
+  bool full() const { return cur.full(); }
+  bool empty() const { return cur.empty(); }
   void issue(ReorderBuffer &RoB, RegisterFile &reg, const Instruction &ins,
              int dest) {
-    push(LoadStoreBufferEntry(RoB, reg, ins.rs1, ins.rs2, dest));
+    next.push(LoadStoreBufferEntry(RoB, reg, ins.rs1, ins.rs2, dest));
   }
-  void receive(int dest, unsigned value);
   void execute(ReorderBuffer &RoB, ReservationStation &RS, Memory &mem);
 };
 

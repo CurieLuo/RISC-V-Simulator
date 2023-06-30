@@ -1,7 +1,7 @@
 #ifndef _SJTU_INSTRUCTION_HPP_
 #define _SJTU_INSTRUCTION_HPP_
 
-#define DEBUG
+// #define DEBUG
 #include <iostream>
 #include <string>
 using std::cerr;
@@ -9,6 +9,7 @@ using std::cin;
 using std::cout;
 using std::endl;
 using std::hex;
+using std::string;
 
 #ifdef DEBUG
 #include <cassert>
@@ -16,12 +17,12 @@ using std::hex;
 #else
 #define SHOW(x) (x)
 #endif
-const std::string instructionName[] = {
+const string instructionName[] = {
     "NONE", "END",  "LUI",  "AUIPC", "JAL",  "JALR", "BEQ",   "BNE",
     "BLT",  "BGE",  "BLTU", "BGEU",  "LB",   "LH",   "LW",    "LBU",
     "LHU",  "SB",   "SH",   "SW",    "ADDI", "SLTI", "SLTIU", "XORI",
     "ORI",  "ANDI", "SLLI", "SRLI",  "SRAI", "ADD",  "SUB",   "SLL",
-    "SLT",  "SLTU", "XOR",  "SRL",   "SRA",  "OR",   "AND"}; //! debug
+    "SLT",  "SLTU", "XOR",  "SRL",   "SRA",  "OR",   "AND"}; // for debug
 
 enum InstructionType {
   NONE,  // invalid instruction (caused by wrong prediction)

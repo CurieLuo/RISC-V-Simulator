@@ -1,8 +1,10 @@
+#include "branch_predictor.hpp"
 #include "control_unit.hpp"
 #include "load_store_buffer.hpp"
-#include "predictor.hpp"
 #include "reorder_buffer.hpp"
 #include "reservation_station.hpp"
+#include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -15,12 +17,12 @@ using std::endl;
 void getSimulatorInput(Memory &mem) {
   //! test
   //   std::fstream fin;
-  //   std::string name;
+  //   string name;
   //   cin >> name;
   //   fin.open(("./testcases/" + name + ".data").data(), std::ios::in);
   // #define cin fin
   //! test
-  std::string s;
+  string s;
   unsigned pos = 0;
   while (cin >> s) {
     if (s[0] == '@')
@@ -31,6 +33,8 @@ void getSimulatorInput(Memory &mem) {
 }
 
 signed main() {
+  cerr << hex;
+  srand(time(0));
   RegisterFile reg;
   Memory mem;
   BranchPredictor BP;
@@ -39,8 +43,8 @@ signed main() {
   LoadStoreBuffer LSB;
   ControlUnit CU;
   getSimulatorInput(mem);
-  while (CU.run(RS, LSB, RoB, reg, mem, BP))
-    ;
+  while (!CU.end())
+    CU.run(RS, LSB, RoB, reg, mem, BP);
   cout << (reg.cur[10] & 255u) << endl;
   return 0;
 }

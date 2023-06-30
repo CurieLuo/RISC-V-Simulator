@@ -6,21 +6,24 @@ private:
   static const int REG_NUM = 32;
 
 public:
-  unsigned cur[REG_NUM], next[REG_NUM]; // register value
-  int depend[REG_NUM];                  // RoB index (-1: none)
+  unsigned cur[REG_NUM], next[REG_NUM];      // register value
+  int depend[REG_NUM], depend_next[REG_NUM]; // RoB index (-1: none)
 public:
   void clearDependence() {
     for (int i = 0; i < REG_NUM; i++)
-      depend[i] = -1;
+      depend_next[i] = -1;
   }
   RegisterFile() {
     cur[0] = next[0] = 0;
-    clearDependence();
+    for (int i = 0; i < REG_NUM; i++)
+      depend[i] = depend_next[i] = -1;
   }
   void update() {
-    cur[0] = next[0] = 0, depend[0] = -1;
-    for (int i = 1; i < REG_NUM; i++)
+    next[0] = 0, depend_next[0] = -1;
+    for (int i = 0; i < REG_NUM; i++) {
       cur[i] = next[i];
+      depend[i] = depend_next[i];
+    }
   }
 };
 

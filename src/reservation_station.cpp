@@ -10,7 +10,6 @@ ReservationStationEntry::ReservationStationEntry(ReorderBuffer &RoB,
     : busy(1), dest(d), value1(0), value2(0) {
   depend1 = reg.depend[rs1];
   depend2 = reg.depend[rs2];
-
   if (depend1 == -1) {
     value1 = reg.cur[rs1];
   } else if (RoB[depend1].type == JALR || RoB[depend1].ready) {
@@ -25,27 +24,27 @@ ReservationStationEntry::ReservationStationEntry(ReorderBuffer &RoB,
   }
 }
 
-void ReservationStation::receive(int dest, unsigned value) {
-
-  for (auto &entry : table)
-    if (entry.busy) {
-      if (entry.depend1 == dest) {
-        entry.depend1 = -1;
-        entry.value1 = value;
-      }
-      if (entry.depend2 == dest) {
-        entry.depend2 = -1;
-        entry.value2 = value;
-      }
+void ReservationStation::update(ReorderBuffer &RoB) {
+  for (int i = 0; i < SIZE; i++)
+    if (next[i].busy) {
+      ReservationStationEntry &entry = next[i];
+      if (entry.depend1 != -1 && RoB[entry.depend1].ready)
+        entry.value1 = RoB[entry.depend1].value, entry.depend1 = -1;
+      if (entry.depend2 != -1 && RoB[entry.depend2].ready)
+        entry.value2 = RoB[entry.depend2].value, entry.depend2 = -1;
     }
+  for (int i = 0; i < SIZE; i++)
+    cur[i] = next[i];
+  size = size_next;
 }
 
 void ReservationStation::execute(ReorderBuffer &RoB, LoadStoreBuffer &LSB) {
-  for (auto &entry : table) {
-    if (!(entry.busy && entry.depend1 == -1 && entry.depend2 == -1))
+  for (int i = 0; i < SIZE; i++) {
+    if (!(cur[i].busy && cur[i].depend1 == -1 && cur[i].depend2 == -1))
       continue;
+    ReservationStationEntry &entry = next[i];
     entry.busy = 0;
-    size--;
+    size_next--;
     // TODO ALU
     unsigned ans = 0;
     int dest = entry.dest;
@@ -53,7 +52,7 @@ void ReservationStation::execute(ReorderBuffer &RoB, LoadStoreBuffer &LSB) {
     InstructionType type = RoB[dest].type;
     switch (type) {
     case JALR:
-      RoB[dest].value2 = (v1 + imm) & ~1u; //!!!
+      RoB.next[dest].value2 = (v1 + imm) & ~1u;
       break;
 
     case BEQ:
@@ -139,11 +138,8 @@ void ReservationStation::execute(ReorderBuffer &RoB, LoadStoreBuffer &LSB) {
       break;
     }
     if (type != JALR)
-      RoB[dest].value = ans;
-    RoB[dest].ready = 1;
-    if (!isBType(type)) {
-      RoB.broadcast(*this, LSB, dest);
-    }
+      RoB.next[dest].value = ans;
+    RoB.next[dest].ready = 1;
     return;
   }
 }
